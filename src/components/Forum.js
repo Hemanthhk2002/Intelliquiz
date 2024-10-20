@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { db, auth } from "../firebase"; // Firebase config
-import { collection, addDoc, query, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, addDoc, query, orderBy, onSnapshot, where, getDocs } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { format } from "date-fns"; // For formatting dates
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage"; // Import Firebase Storage functions
@@ -21,15 +21,36 @@ const Forum = () => {
 
   const storage = getStorage(); // Initialize Firebase Storage
 
-  // Fetch current user
+  // Fetch current user and get register number as username
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (currentUser) {
-        setUser({ email: currentUser.email, uid: currentUser.uid });
+        try {
+          // Query Firestore to find the user with the matching email
+          const usersCollection = collection(db, "users");
+          const q = query(usersCollection, where("email", "==", currentUser.email));
+          const querySnapshot = await getDocs(q);
+          
+          if (!querySnapshot.empty) {
+            // Get the first document that matches
+            const userData = querySnapshot.docs[0].data();
+            setUser({
+              email: currentUser.email,
+              uid: currentUser.uid,
+              username: userData.registerNumber // Assuming the field is named "registerNumber"
+            });
+          } else {
+            // If no matching user found in Firestore, set user with email and uid only
+            setUser({ email: currentUser.email, uid: currentUser.uid, username: "Anonymous" });
+          }
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+        }
       } else {
         setUser(null);
       }
     });
+
     return () => unsubscribe();
   }, []);
 
@@ -74,7 +95,7 @@ const Forum = () => {
       await addDoc(collection(db, "forum_messages"), {
         text: replyMessage || message,
         createdAt: new Date(),
-        user: user.email,
+        user: user.username,
         uid: user.uid,
         imageUrl,
         replyingTo: replyingTo ? { user: replyingTo.user, text: replyingTo.text } : null,
@@ -96,16 +117,20 @@ const Forum = () => {
   };
 
   return (
-    <div className="flex flex-col w-full bg-gray-100 py-8 px-6">
+    <div >
       {loading ? (
         <div className="flex flex-col items-center justify-center h-screen">
           <Lottie animationData={Loading} loop={true} style={{ width: 150, height: 150 }} />
           <p className="text-gray-600">Loading...</p>
         </div>
       ) : (
-        <div>
-          <Header />
-          <h1 className="text-2xl font-bold mt-4 text-gray-800 mb-6">Discussion Forum</h1>
+        <div> 
+        <Header />
+        <div className="flex flex-col w-full bg-gray-100 py-8 px-6">
+         
+        <h1 className="text-4xl font-bold mt-4 mb-4 text-transparent h-14 bg-clip-text bg-gradient-to-r from-black to-blue-500 shadow-lg mb-6">
+              Discussion Forum
+            </h1>
 
           <div className="flex flex-col space-y-4">
             {messages.map((msg) => (
@@ -169,6 +194,7 @@ const Forum = () => {
           </div>
 
           <ToastContainer />
+        </div>
         </div>
       )}
     </div>
