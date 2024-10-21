@@ -14,10 +14,6 @@ const CQuizDashboard = () => {
     navigate('/existing-quiz'); // Route to Existing Quizzes page
   };
 
-  const handleViewQuizLog = () => {
-    navigate('/quiz-log'); // Route to Quiz Log page
-  };
-
   const handleCreateGeneratedQuiz = () => {
     navigate('/create-generated-quiz'); // Route to Create Generated Quiz page
   };
@@ -25,7 +21,7 @@ const CQuizDashboard = () => {
   return (
     <div>
       <Header />
-      <div className="bg-gray-100 min-h-screen flex flex-col items-center justify-center py-12 sm:px-6 lg:px-8">
+      <div className="min-h-screen flex flex-col items-center justify-center py-12 sm:px-6 lg:px-8 bg-gradient-to-r from-blue-400 via-purple-500 to-indigo-400"> {/* Gradient background */}
         <div className="max-w-4xl w-full p-10 bg-white rounded-xl shadow-md">
           <h2 className="text-4xl font-extrabold text-gray-900 text-center mb-8">Quiz Dashboard</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -44,14 +40,6 @@ const CQuizDashboard = () => {
               className="w-full bg-green-500 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-lg transition duration-300"
             >
               Existing Quizzes
-            </button>
-
-            {/* Button for Viewing Quiz Log */}
-            <button
-              onClick={handleViewQuizLog}
-              className="w-full bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-4 px-6 rounded-lg transition duration-300"
-            >
-              Quiz Log
             </button>
 
             {/* Button for Creating Generated Quiz */}

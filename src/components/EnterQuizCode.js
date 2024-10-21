@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { db } from '../firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import * as faceapi from 'face-api.js';
@@ -16,11 +15,10 @@ export default function EnterQuizCode() {
   const [proctoringError, setProctoringError] = useState('');
   const [tabSwitchWarning, setTabSwitchWarning] = useState('');
   const videoRef = useRef(null);
-  const navigate = useNavigate();
   const detectionIntervalRef = useRef(null);
   const timerIntervalRef = useRef(null);
   const streamRef = useRef(null);
-  const warningTimeoutRef = useRef(null); // Reference to the warning timeout
+  const warningTimeoutRef = useRef(null);
 
   // Timer formatting
   const formatTime = (time) => {
@@ -40,8 +38,7 @@ export default function EnterQuizCode() {
       }
     };
     loadModels();
-  
-    // Listen for tab visibility changes
+
     const handleVisibilityChange = () => {
       if (document.hidden) {
         setTabSwitchWarning('You have switched the tab. Please return to the quiz.');
@@ -52,7 +49,6 @@ export default function EnterQuizCode() {
       }
     };
 
-    // Listen for window focus/blur events
     const handleWindowBlur = () => {
       setTabSwitchWarning('You have switched the window or minimized the tab. Please return to the quiz.');
       clearTimeout(warningTimeoutRef.current);
@@ -80,38 +76,31 @@ export default function EnterQuizCode() {
       if (timerIntervalRef.current) {
         clearInterval(timerIntervalRef.current);
       }
-      clearTimeout(warningTimeoutRef.current); // Cleanup warning timeout
-
-      // Clean up event listeners
+      clearTimeout(warningTimeoutRef.current);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('blur', handleWindowBlur);
       window.removeEventListener('focus', handleWindowFocus);
     };
   }, []);
-  
+
   const startProctoring = () => {
     const detectFace = async () => {
       if (videoRef.current) {
         const detections = await faceapi.detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions())
           .withFaceLandmarks();
-        
-        if (!detections.length) {
+
+        if (detections.length === 0) {
           setProctoringError('No face detected. Please stay in front of the camera.');
         } else if (detections.length > 1) {
           setProctoringError('Multiple faces detected! This is a violation.');
         } else {
-          setProctoringError('');
           const landmarks = detections[0].landmarks;
-
-          // Detect head turn (left/right)
           const nose = landmarks.getNose();
           const leftEye = landmarks.getLeftEye();
           const rightEye = landmarks.getRightEye();
-
-          const noseX = nose[3].x; // Center of the nose
-          const leftEyeX = leftEye[0].x; // Leftmost point of left eye
-          const rightEyeX = rightEye[3].x; // Rightmost point of right eye
-
+          const noseX = nose[3].x;
+          const leftEyeX = leftEye[0].x;
+          const rightEyeX = rightEye[3].x;
           const eyeDistance = rightEyeX - leftEyeX;
           const noseToLeftEyeDistance = noseX - leftEyeX;
 
@@ -126,7 +115,7 @@ export default function EnterQuizCode() {
       }
     };
 
-    detectionIntervalRef.current = setInterval(detectFace, 5000); // Detect face every 5 seconds
+    detectionIntervalRef.current = setInterval(detectFace, 5000);
   };
 
   const startTimer = () => {
@@ -186,7 +175,7 @@ export default function EnterQuizCode() {
           setQuizData(data);
           setError('');
           setSubmitted(false);
-          setTimeLeft(data.quizDuration * 60);
+          setTimeLeft(data.duration * 60);
           startWebcam();
           startProctoring();
           startTimer();
@@ -222,6 +211,7 @@ export default function EnterQuizCode() {
       setScore(calculatedScore);
       setSubmitted(true);
 
+      // Stop proctoring
       if (detectionIntervalRef.current) {
         clearInterval(detectionIntervalRef.current);
       }
@@ -229,80 +219,89 @@ export default function EnterQuizCode() {
         clearInterval(timerIntervalRef.current);
       }
 
-      stopWebcam();
+      stopWebcam(); // Stop webcam after quiz submission
 
-      navigate('/result', { state: { score: calculatedScore, total: quizData.questions.length } });
+      // No navigation; show results on the same page
     }
   };
 
   return (
-    <div className="flex justify-center items-center h-screen bg-gray-100 relative">
-      <div className="w-full max-w-lg bg-white p-8 rounded-lg shadow-lg">
-        <h2 className="text-3xl font-bold text-center mb-6 text-blue-600">Quiz Attendance</h2>
-        <h3 className="text-lg text-center mb-4 text-gray-700">Enter Quiz Code and Access Key</h3>
-        
-        {!quizData ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="quizCode" className="block text-gray-600 font-semibold">Quiz Code</label>
-              <input
-                type="text"
-                id="quizCode"
-                value={quizCode}
-                onChange={(e) => setQuizCode(e.target.value)}
-                required
-                className="mt-1 p-2 border border-gray-300 rounded w-full"
-              />
-            </div>
-            <div>
-              <label htmlFor="accessKey" className="block text-gray-600 font-semibold">Access Key</label>
-              <input
-                type="password"
-                id="accessKey"
-                value={accessKey}
-                onChange={(e) => setAccessKey(e.target.value)}
-                required
-                className="mt-1 p-2 border border-gray-300 rounded w-full"
-              />
-            </div>
-            {error && <p className="text-red-600 text-center">{error}</p>}
-            <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-500 transition duration-200">Start Quiz</button>
-          </form>
-        ) : submitted ? (
-          <div className="text-center">
-            <h4 className="text-xl font-semibold">Your Score: {score}/{quizData.questions.length}</h4>
-            <button onClick={() => navigate('/')} className="mt-4 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-500 transition duration-200">Go to Home</button>
+    <div
+  className="flex justify-center items-center h-screen bg-gradient-to-r from-blue-400 via-purple-500 to-indigo-400 relative"
+>
+
+      <div className="absolute top-0 right-0 p-4 bg-white shadow-md rounded-lg">
+        <video ref={videoRef} className="w-40 h-40 border-2 border-red-500"></video>
+        {/* Proctoring video and errors */}
+        {proctoringError && <p className="text-red-500">{proctoringError}</p>}
+        {tabSwitchWarning && <p className="text-red-500">{tabSwitchWarning}</p>}
+      </div>
+      <div className="w-full max-w-lg bg-white p-8 rounded-lg shadow-lg overflow-y-auto h-[80vh]">
+        <h1 className="text-2xl font-bold mb-4 text-center">Enter Quiz Code</h1>
+        <form onSubmit={handleSubmit} className="mb-4">
+          <div className="mb-4">
+            <label className="block mb-1 font-semibold">Quiz Code:</label>
+            <input
+              type="text"
+              value={quizCode}
+              onChange={(e) => setQuizCode(e.target.value)}
+              required
+              className="border border-gray-300 rounded w-full p-2"
+            />
           </div>
-        ) : (
+          <div className="mb-4">
+            <label className="block mb-1 font-semibold">Access Key:</label>
+            <input
+              type="password"
+              value={accessKey}
+              onChange={(e) => setAccessKey(e.target.value)}
+              required
+              className="border border-gray-300 rounded w-full p-2"
+            />
+          </div>
+          <button
+            type="submit"
+            className="bg-blue-500 text-white rounded py-2 px-4 hover:bg-blue-600"
+          >
+            Join Quiz
+          </button>
+        </form>
+        {error && <p className="text-red-500">{error}</p>}
+        {quizData && (
           <div>
-            <h4 className="text-xl font-semibold mb-4">You have {formatTime(timeLeft)} left to complete the quiz.</h4>
-            {quizData.questions.map((question, qIndex) => (
-              <div key={qIndex} className="mb-4 p-4 border rounded bg-gray-50">
-                <h5 className="font-medium">{question.text}</h5>
-                {question.options.map((option, index) => (
-                  <label key={index} className="block mt-2">
-                    <input
-                      type="radio"
-                      name={`question-${qIndex}`}
-                      value={option}
-                      onChange={() => handleOptionChange(qIndex, option)}
-                      className="mr-2"
-                    />
-                    {option}
-                  </label>
-                ))}
+            <h2 className="text-xl font-bold mb-4">Quiz: {quizData.quizTitle}</h2>
+            <div className="overflow-y-auto h-[60vh]">
+              {quizData.questions.map((q, index) => (
+                <div key={index} className="mb-4">
+                  <p className="font-semibold">{index + 1}. {q.question}</p>
+                  {q.options.map((option) => (
+                    <div key={option} className="flex items-center">
+                      <input
+                        type="radio"
+                        name={`question-${index}`}
+                        value={option}
+                        onChange={() => handleOptionChange(index, option)}
+                        className="mr-2"
+                      />
+                      <label>{option}</label>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={handleSubmitAnswers}
+              className="bg-green-500 text-white rounded py-2 px-4 hover:bg-green-600"
+            >
+              Submit Answers
+            </button>
+            {submitted && (
+              <div className="mt-4">
+                <p className="text-xl font-bold">Your Score: {score}/{quizData.questions.length}</p>
               </div>
-            ))}
-            {tabSwitchWarning && <p className="text-red-600 text-center">{tabSwitchWarning}</p>}
-            {proctoringError && <p className="text-red-600 text-center">{proctoringError}</p>}
-            <button onClick={handleSubmitAnswers} className="w-full mt-4 bg-green-600 text-white py-2 rounded hover:bg-green-500 transition duration-200">Submit Answers</button>
+            )}
           </div>
         )}
-        
-        <div className="absolute top-7 right-5">
-  <video ref={videoRef} className="w-48 h-48 rounded-lg border-2 border-blue-600" autoPlay muted></video>
-</div>
-
       </div>
     </div>
   );
